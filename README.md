@@ -1,0 +1,26 @@
+# День Кати — Pixel Mini Games
+
+Готовый HTML-проект для GitHub Pages.
+
+## Как загрузить на GitHub Pages
+
+1. Распакуй архив.
+2. Загрузи `index.html` и папку `comics` в репозиторий.
+3. В GitHub открой Settings → Pages.
+4. Source: Deploy from a branch.
+5. Branch: main / root.
+6. Открой ссылку Pages.
+
+## Структура
+
+- `index.html` — вся игра.
+- `comics/` — комиксы между эпизодами.
+
+## Комиксы
+
+- `comic_01_morning.png` — пробуждение.
+- `comic_02_bmw.png` — выход из дома и BMW.
+- `comic_03_tennis.png` — приезд на теннис.
+- `comic_04_drift.png` — после тенниса, вечерний драйв.
+- `comic_05_poledance.png` — после дрифта, студия пулдэнса.
+- `comic_06_ilya.png` — финал, написать Илье.

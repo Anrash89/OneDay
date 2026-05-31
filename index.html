@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>День Кати — Pixel Mini Games</title>
+  <style>
+    :root {
+      --bg:#17111f;
+      --panel:#2a1836;
+      --pink:#ff7bcf;
+      --cyan:#72dcff;
+      --cream:#fff1c7;
+      --green:#8cff9a;
+      --red:#ff5c7a;
+      --yellow:#ffd35a;
+    }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body {
+      margin:0; padding:0; width:100%; height:100%;
+      background: radial-gradient(circle at top, #34204a 0%, #17111f 60%, #09060d 100%);
+      color:white;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow:hidden;
+      touch-action:none;
+    }
+    #wrap {
+      width:100vw; height:100vh;
+      display:flex; align-items:center; justify-content:center;
+      padding:10px;
+    }
+    #gameShell {
+      position:relative;
+      width:min(100vw, 430px);
+      height:min(100vh, 820px);
+      aspect-ratio:9/16;
+      max-height:100vh;
+      border:4px solid #3f2754;
+      border-radius:22px;
+      overflow:hidden;
+      background:#111;
+      box-shadow:0 20px 70px rgba(0,0,0,.45), inset 0 0 0 3px rgba(255,255,255,.08);
+    }
+    canvas {
+      display:block;
+      width:100%;
+      height:100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      background:#120b18;
+    }
+    #ui {
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+    }
+    .btn {
+      position:absolute;
+      pointer-events:auto;
+      border:3px solid rgba(255,255,255,.22);
+      background:rgba(42,24,54,.78);
+      color:white;
+      border-radius:18px;
+      font-weight:900;
+      font-size:16px;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      box-shadow:0 8px 0 rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+      user-select:none;
+      display:flex; align-items:center; justify-content:center;
+      text-align:center;
+      padding:8px;
+    }
+    .btn:active { transform:translateY(5px); box-shadow:0 3px 0 rgba(0,0,0,.35); }
+    .hidden { display:none !important; }
+    #leftBtn,#rightBtn,#aBtn,#bBtn {
+      bottom:22px; width:76px; height:64px;
+    }
+    #leftBtn { left:18px; }
+    #rightBtn { left:105px; }
+    #aBtn { right:105px; background:rgba(255,108,199,.78); }
+    #bBtn { right:18px; background:rgba(102,231,255,.55); }
+    #wideBtn {
+      left:64px; right:64px; bottom:18px; height:54px;
+      background:linear-gradient(135deg, rgba(255,108,199,.88), rgba(102,231,255,.70));
+    }
+    #topHint {
+      position:absolute;
+      top:10px; left:10px; right:10px;
+      padding:10px 12px;
+      border-radius:14px;
+      background:rgba(14,8,20,.58);
+      border:2px solid rgba(255,255,255,.12);
+      color:#fff3d8;
+      font-weight:800;
+      font-size:14px;
+      line-height:1.25;
+      pointer-events:none;
+      text-shadow:0 2px 0 #000;
+    }
+    #toast {
+      position:absolute;
+      left:18px; right:18px; top:70px;
+      padding:10px 12px;
+      border-radius:14px;
+      background:rgba(0,0,0,.64);
+      border:2px solid rgba(255,255,255,.18);
+      color:white;
+      font-weight:800;
+      opacity:0;
+      transform:translateY(-10px);
+      transition:.25s;
+      pointer-events:none;
+      text-align:center;
+    }
+    #toast.show { opacity:1; transform:translateY(0); }
+    @media (max-height:680px) {
+      #gameShell { border-radius:14px; }
+      #leftBtn,#rightBtn,#aBtn,#bBtn { bottom:12px; height:56px; width:68px; font-size:14px; }
+      #rightBtn { left:92px; }
+      #aBtn { right:92px; }
+    }
+  </style>
+</head>
+<body>
+<div id="wrap">
+  <div id="gameShell">
+    <canvas id="game" width="360" height="640"></canvas>
+    <div id="ui">
+      <div id="topHint"></div>
+      <div id="toast"></div>
+      <button id="leftBtn" class="btn hidden">◀</button>
+      <button id="rightBtn" class="btn hidden">▶</button>
+      <button id="aBtn" class="btn hidden">A</button>
+      <button id="bBtn" class="btn hidden">B</button>
+      <button id="wideBtn" class="btn">НАЧАТЬ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+
+  const W = canvas.width, H = canvas.height;
+  const ui = {
+    hint: document.getElementById("topHint"),
+    toast: document.getElementById("toast"),
+    left: document.getElementById("leftBtn"),
+    right: document.getElementById("rightBtn"),
+    a: document.getElementById("aBtn"),
+    b: document.getElementById("bBtn"),
+    wide: document.getElementById("wideBtn")
+  };
+
+  const palette = {
+    bg:"#151020", dark:"#0b0710", panel:"#2a1836", wall:"#51346c",
+    pink:"#ff6cc7", cyan:"#66e7ff", cream:"#fff1c7", yellow:"#ffd35a",
+    green:"#8cff9a", red:"#ff5c7a", road:"#282b36", road2:"#343947",
+    white:"#f4f4ff", bmw:"#f7f7ff", black:"#08080c", purple:"#8e62ff"
+  };
+
+  let scene = "title";
+  let last = performance.now();
+  let t = 0;
+  let buttons = { left:false, right:false, a:false, b:false };
+  let pointer = { down:false, x:0, y:0, startX:0, startY:0 };
+  let save = { hearts:0, coffee:0, style:0 };
+  let storyIndex = 0;
+
+  // Можно позже заменить эти сюжетные вставки на готовые PNG-комиксы.
+  // Рекомендуемые имена файлов:
+  // comics/comic_01_morning.png
+  // comics/comic_02_drive.png
+  // comics/comic_03_tennis.png
+  // comics/comic_04_drift.png
+  // comics/comic_05_poledance.png
+  // comics/comic_06_message.png
+
+  const story = [
+    {
+      title:"Утро Кати",
+      text:"Будильник звенит. Катя открывает глаза, а день уже явно что-то задумал.",
+      next:"breakfast",
+      bg:"bedroom"
+    },
+    {
+      title:"На работу!",
+      text:"Завтрак готов. Айкос-пауза пройдена. Белый BMW X4 уже ждёт у подъезда.",
+      next:"drive",
+      bg:"garage"
+    },
+    {
+      title:"После работы — теннис",
+      text:"Катя приезжает на корт. Нужно отбить подачу и показать класс.",
+      next:"tennis",
+      bg:"court"
+    },
+    {
+      title:"Вечерний дрифт",
+      text:"Дорога пустая, кофе бодрит, BMW просит красивый занос.",
+      next:"drift",
+      bg:"nightroad"
+    },
+    {
+      title:"Пулдэнс",
+      text:"Ритм, пластика, свет софитов. Нужно попасть в движения и собрать комбо.",
+      next:"poledance",
+      bg:"stage"
+    },
+    {
+      title:"Финал",
+      text:"После такого дня осталось главное: написать Илье.",
+      next:"message",
+      bg:"phone"
+    }
+  ];
+
+  const comicFiles = [
+    "comics/comic_01_morning.png",
+    "comics/comic_02_bmw.png",
+    "comics/comic_03_tennis.png",
+    "comics/comic_04_drift.png",
+    "comics/comic_05_poledance.png",
+    "comics/comic_06_ilya.png"
+  ];
+
+  const comicImages = comicFiles.map(src => {
+    const img = new Image();
+    img.src = src;
+    return img;
+  });
+
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function rnd(a,b){ return a + Math.random() * (b-a); }
+  function irnd(a,b){ return Math.floor(rnd(a,b+1)); }
+  function hit(a,b){ return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y; }
+
+  function setButtons({left=false,right=false,a=false,b=false,wide=false,wideText="ДАЛЬШЕ",aText="A",bText="B"} = {}) {
+    ui.left.classList.toggle("hidden", !left);
+    ui.right.classList.toggle("hidden", !right);
+    ui.a.classList.toggle("hidden", !a);
+    ui.b.classList.toggle("hidden", !b);
+    ui.wide.classList.toggle("hidden", !wide);
+    ui.wide.textContent = wideText;
+    ui.a.textContent = aText;
+    ui.b.textContent = bText;
+  }
+  function hint(txt){
+    ui.hint.innerHTML = txt || "";
+    ui.hint.classList.toggle("hidden", !txt);
+  }
+  function toast(txt){
+    ui.toast.textContent = txt;
+    ui.toast.classList.add("show");
+    clearTimeout(ui.toast._timer);
+    ui.toast._timer = setTimeout(()=>ui.toast.classList.remove("show"), 1100);
+  }
+
+  function px(x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
+  function text(s,x,y,size=14,color="#fff",align="left"){
+    ctx.fillStyle=color; ctx.font=`900 ${size}px monospace`; ctx.textAlign=align;
+    ctx.textBaseline="top";
+    ctx.fillText(s,x,y);
+  }
+  function wrapText(s,x,y,maxW,lineH,size=14,color="#fff"){
+    ctx.fillStyle=color; ctx.font=`900 ${size}px monospace`; ctx.textAlign="left"; ctx.textBaseline="top";
+    const words = s.split(" ");
+    let line = "";
+    for (let word of words) {
+      const test = line ? line + " " + word : word;
+      if (ctx.measureText(test).width > maxW && line) {
+        ctx.fillText(line,x,y); y += lineH; line = word;
+      } else line = test;
+    }
+    if(line) ctx.fillText(line,x,y);
+  }
+  function drawPixelKatya(x,y,scale=2,pose=0){
+    const s=scale;
+
+    // pose modifiers
+    const walk = pose % 2;
+    const dance = pose === 2;
+
+    // shadow
+    px(x+2*s,y+33*s,22*s,3*s,"rgba(0,0,0,.18)");
+
+    // legs / white pants
+    px(x+6*s,y+22*s,5*s,10*s,"#f8f7f2");
+    px(x+13*s,y+22*s,5*s,10*s,"#f8f7f2");
+    px(x+6*s,y+30*s,6*s,3*s,"#ffffff");
+    px(x+13*s,y+30*s,6*s,3*s,"#ffffff");
+    if(walk){
+      px(x+14*s,y+29*s,7*s,3*s,"#ffffff");
+      px(x+4*s,y+30*s,6*s,3*s,"#ffffff");
+    }
+
+    // white jacket / outfit
+    px(x+4*s,y+11*s,16*s,13*s,"#fffaf0");
+    px(x+5*s,y+12*s,14*s,2*s,"#ffffff");
+    px(x+6*s,y+15*s,5*s,4*s,"#e9e3d7");
+    px(x+13*s,y+15*s,5*s,4*s,"#e9e3d7");
+    px(x+11*s,y+12*s,2*s,12*s,"#d8d0c7");
+    px(x+4*s,y+22*s,16*s,3*s,"#e9e3d7");
+
+    // arms
+    if(dance){
+      px(x+1*s,y+8*s,4*s,13*s,"#ffd0bd");
+      px(x+19*s,y+7*s,4*s,13*s,"#ffd0bd");
+    } else {
+      px(x+1*s,y+14*s,4*s,10*s,"#ffd0bd");
+      px(x+19*s,y+14*s,4*s,10*s,"#ffd0bd");
+    }
+
+    // tattoo on forearm, smartwatch
+    px(x+19*s,y+17*s,4*s,1*s,"#2b2b35");
+    px(x+19*s,y+20*s,4*s,1*s,"#2b2b35");
+    px(x+18*s,y+22*s,5*s,2*s,"#202638");
+    px(x+19*s,y+22*s,2*s,2*s,"#66e7ff");
+
+    // neck and face
+    px(x+10*s,y+9*s,5*s,4*s,"#ffc6b0");
+    px(x+6*s,y+2*s,13*s,11*s,"#ffd0bd");
+
+    // long black hair, more like photo reference
+    px(x+4*s,y+0*s,17*s,4*s,"#141016");
+    px(x+3*s,y+3*s,5*s,14*s,"#141016");
+    px(x+17*s,y+3*s,5*s,16*s,"#141016");
+    px(x+5*s,y+8*s,3*s,12*s,"#1c1720");
+    px(x+18*s,y+10*s,4*s,13*s,"#1c1720");
+    px(x+8*s,y+0*s,10*s,2*s,"#2d232b");
+    px(x+15*s,y+1*s,4*s,2*s,"#3b3037");
+
+    // blue eyes
+    px(x+9*s,y+6*s,2*s,2*s,"#4ac7ff");
+    px(x+15*s,y+6*s,2*s,2*s,"#4ac7ff");
+    px(x+9*s,y+5*s,2*s,1*s,"#1a1218");
+    px(x+15*s,y+5*s,2*s,1*s,"#1a1218");
+
+    // cute smile / expression
+    if(pose===1){
+      px(x+12*s,y+10*s,4*s,2*s,"#8b3b45");
+    } else if(dance){
+      px(x+12*s,y+10*s,5*s,1*s,"#b54752");
+      px(x+17*s,y+5*s,2*s,2*s,"#ffc6d8"); // blush
+    } else {
+      px(x+12*s,y+10*s,4*s,1*s,"#b54752");
+      px(x+7*s,y+9*s,2*s,1*s,"#ffc6d8");
+      px(x+18*s,y+9*s,2*s,1*s,"#ffc6d8");
+    }
+
+    // tiny earrings
+    px(x+5*s,y+8*s,1*s,2*s,"#fff1c7");
+    px(x+20*s,y+8*s,1*s,2*s,"#fff1c7");
+  }
+  function drawBMW(x,y,ang=0,scale=1){
+    ctx.save();
+    ctx.translate(x,y); ctx.rotate(ang);
+    const s=scale;
+    px(-15*s,-28*s,30*s,56*s,palette.bmw);
+    px(-12*s,-22*s,24*s,15*s,"#cbe7ff");
+    px(-12*s,5*s,24*s,15*s,"#cbe7ff");
+    px(-17*s,-21*s,5*s,12*s,palette.black); px(12*s,-21*s,5*s,12*s,palette.black);
+    px(-17*s,11*s,5*s,12*s,palette.black); px(12*s,11*s,5*s,12*s,palette.black);
+    px(-8*s,-29*s,5*s,3*s,palette.cyan); px(3*s,-29*s,5*s,3*s,palette.cyan);
+    px(-10*s,27*s,20*s,3*s,"#bfc0d0");
+    px(-3*s,-5*s,6*s,10*s,"#222");
+    ctx.restore();
+  }
+  function drawCoffee(x,y,s=1){
+    px(x-6*s,y-7*s,12*s,14*s,"#f4f4ff");
+    px(x+6*s,y-3*s,4*s,6*s,"#f4f4ff");
+    px(x-4*s,y-5*s,8*s,3*s,"#8b4b24");
+    px(x-5*s,y+4*s,10*s,3*s,palette.pink);
+  }
+  function drawIQOS(x,y,s=1){
+    px(x-2*s,y-14*s,4*s,28*s,"#e8e8ef");
+    px(x-2*s,y-15*s,4*s,3*s,palette.cyan);
+    px(x-1*s,y+9*s,2*s,5*s,"#aaa");
+  }
+  function drawRoom(){
+    px(0,0,W,H,"#ffeef8");
+    for(let i=0;i<9;i++) px(i*44,0,2,H,"rgba(255,255,255,.05)");
+    px(0,410,W,230,"#ffd6ef");
+    px(22,340,136,78,"#fff2c8"); px(32,320,110,30,"#ffffff");
+    px(195,255,128,98,"#c98f66"); px(206,238,105,20,"#fff1c7");
+    px(214,267,26,26,"#fff"); px(252,267,26,26,"#fff"); px(286,267,18,40,"#d9f7ff");
+    px(240,116,92,70,"#fff"); px(248,124,76,54,"#b8f0ff");
+  }
+  function drawComicBg(kind){
+    if(kind==="bedroom") drawRoom();
+    else if(kind==="garage"){
+      px(0,0,W,H,"#1c1f2e"); px(0,430,W,210,"#292d3a");
+      for(let x=30;x<W;x+=60) px(x,0,18,430,"#30364c");
+      drawBMW(180,430,0,1.25); drawPixelKatya(120,360,3,1);
+    } else if(kind==="court"){
+      px(0,0,W,H,"#304b3d"); px(20,120,320,420,"#3e8c5d");
+      px(28,128,304,404,"#fff"); px(34,134,292,392,"#3e8c5d");
+      px(20,330,320,4,"#fff"); drawPixelKatya(150,455,3,2);
+    } else if(kind==="nightroad"){
+      px(0,0,W,H,"#090b17"); for(let i=0;i<70;i++) px(irnd(0,W),irnd(0,280),2,2,"#fff");
+      px(95,0,170,H,"#292b35"); drawBMW(180,420,.3,1.2);
+    } else if(kind==="stage"){
+      px(0,0,W,H,"#160a22"); px(0,470,W,170,"#2b1235");
+      px(175,115,10,370,"#d9d9ee"); drawPixelKatya(143,370,3,2);
+      px(40,0,70,H,"rgba(255,108,199,.25)"); px(250,0,70,H,"rgba(102,231,255,.22)");
+    } else if(kind==="phone"){
+      px(0,0,W,H,"#161020"); px(62,70,236,500,"#111");
+      px(72,92,216,455,"#dfe9ff"); px(100,516,160,18,"#222");
+    }
+  }
+
+  // Title
+  function drawTitle(){
+    // Cute mysterious intro. No spoilers about mini-games.
+    px(0,0,W,H,"#ffeef8");
+    px(0,420,W,220,"#ffd6ef");
+    px(0,0,W,170,"#fff7d6");
+
+    // soft pixel hearts / sparkles
+    for(let i=0;i<42;i++){
+      const x=(i*53 + Math.sin(t*.001+i)*18)%W;
+      const y=(i*71 + t*.018)%H;
+      const c=i%3===0?palette.pink:(i%3===1?palette.cyan:palette.yellow);
+      px(x,y,3,3,c); px(x+3,y+3,3,3,c);
+    }
+
+    // little morning window
+    px(32,112,96,86,"#fff");
+    px(40,120,80,70,"#b8f0ff");
+    px(78,120,4,70,"#fff");
+    px(40,153,80,4,"#fff");
+    px(92,132,17,17,palette.yellow);
+
+    // cute Katya
+    drawPixelKatya(116,220,5.1,Math.floor(t/340)%3);
+
+    px(28,44,304,72,"rgba(255,255,255,.78)");
+    px(34,50,292,60,"rgba(255,255,255,.92)");
+    text("ДЕНЬ КАТИ",180,62,32,"#46304f","center");
+    text("маленькая пиксельная история",180,96,12,"#8d5a80","center");
+
+    px(48,468,264,56,"rgba(255,255,255,.80)");
+    text("Что сегодня будет?",180,483,18,"#46304f","center");
+    text("Нажми и узнаешь 💖",180,507,13,"#8d5a80","center");
+  }
+
+  // Story
+  function startStory(i){
+    scene="story"; storyIndex=i;
+    hint("");
+    setButtons({wide:true, wideText:"ДАЛЬШЕ"});
+  }
+  function drawStory(){
+    const img = comicImages[storyIndex];
+
+    // Show the generated comic page full-screen between mini-games.
+    // The canvas is 9:16 and the comics are also vertical, so this fills the phone nicely.
+    if(img && img.complete && img.naturalWidth){
+      const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+      const dw = img.naturalWidth * scale;
+      const dh = img.naturalHeight * scale;
+      const dx = (W - dw) / 2;
+      const dy = (H - dh) / 2;
+      ctx.drawImage(img, dx, dy, dw, dh);
+
+      // subtle bottom fade so the "ДАЛЬШЕ" button remains readable
+      const g = ctx.createLinearGradient(0, H-150, 0, H);
+      g.addColorStop(0, "rgba(0,0,0,0)");
+      g.addColorStop(1, "rgba(0,0,0,.45)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, H-150, W, 150);
+    } else {
+      const s=story[storyIndex];
+      drawComicBg(s.bg);
+      px(20,40,320,130,"rgba(0,0,0,.62)");
+      px(24,44,312,122,"rgba(42,24,54,.86)");
+      text(s.title,38,58,22,palette.yellow);
+      wrapText(s.text,38,92,285,20,14,"#fff");
+      text("Загрузка комикса...",180,504,13,palette.cyan,"center");
+    }
+  }
+
+  // Breakfast
+  let breakfast;
+  function initBreakfast(){
+    scene="breakfast";
+    breakfast = {
+      step:0, score:0, timer:45, panHeat:0, smoke:0,
+      items:[
+        {name:"ЯЙЦО", x:42,y:470,w:72,h:58, ok:0, c:"#fff"},
+        {name:"ТОСТ", x:144,y:470,w:72,h:58, ok:1, c:"#d89b4b"},
+        {name:"КОФЕ", x:246,y:470,w:72,h:58, ok:2, c:"#7a4328"},
+        {name:"IQOS", x:144,y:545,w:72,h:58, ok:3, c:"#e9e9f6"}
+      ],
+      order:["ЯЙЦО","ТОСТ","КОФЕ","IQOS"],
+      fx:[]
+    };
+    hint("Мини-игра: готовим завтрак. Нажимай продукты в правильном порядке: яйцо → тост → кофе → IQOS-пауза.");
+    setButtons({wide:false});
+  }
+  function clickBreakfast(x,y){
+    for(const it of breakfast.items){
+      if(x>=it.x&&x<=it.x+it.w&&y>=it.y&&y<=it.y+it.h){
+        if(it.ok===breakfast.step){
+          breakfast.step++; breakfast.score += 25;
+          breakfast.fx.push({x:it.x+36,y:it.y,txt:"+25",life:1});
+          toast(it.name==="IQOS" ? "Короткая пауза и дальше в бой" : "Отлично!");
+          if(breakfast.step>=4){
+            save.hearts += 1;
+            setTimeout(()=>startStory(1), 650);
+          }
+        } else {
+          breakfast.timer -= 4;
+          toast("Не тот порядок!");
+        }
+      }
+    }
+  }
+  function updateBreakfast(dt){
+    breakfast.timer -= dt;
+    breakfast.panHeat = (Math.sin(t*.006)+1)*.5;
+    breakfast.smoke += dt*2;
+    breakfast.fx.forEach(f=>{f.y-=30*dt; f.life-=dt;});
+    breakfast.fx = breakfast.fx.filter(f=>f.life>0);
+    if(breakfast.timer<=0) { breakfast.timer=0; startStory(1); }
+  }
+  function drawBreakfast(){
+    drawRoom();
+    text("ЗАВТРАК",180,78,25,palette.yellow,"center");
+    px(45,224,270,150,"#4f3825"); px(58,238,244,122,"#755132");
+    // plate / pan / cup
+    px(82,272,64,38,"#222"); px(91,261,44,22,`rgba(255,211,90,${.3+.4*breakfast.panHeat})`);
+    px(157,260,58,42,"#f4f4ff"); px(171,273,30,15,"#fff1c7");
+    drawCoffee(257,280,2);
+    drawPixelKatya(142,150,3,Math.floor(t/250)%2);
+    if(breakfast.step>=3){
+      drawIQOS(118,184,2);
+      for(let i=0;i<4;i++) px(118+i*8, 150 - ((breakfast.smoke*20+i*13)%40), 3,3, "rgba(210,240,255,.7)");
+    }
+    px(20,406,320,48,"rgba(0,0,0,.45)");
+    text("Порядок: "+breakfast.order.map((o,i)=> i<breakfast.step ? "✓" : o).join(" → "),180,420,12,"#fff","center");
+    text("Время: "+Math.ceil(breakfast.timer),24,38,14,palette.cream);
+    text("Очки: "+breakfast.score,260,38,14,palette.green);
+    for(const it of breakfast.items){
+      px(it.x,it.y,it.w,it.h,"rgba(0,0,0,.35)");
+      px(it.x+4,it.y+4,it.w-8,it.h-8,it.c);
+      if(it.name==="ЯЙЦО"){ px(it.x+24,it.y+20,24,18,"#fff"); px(it.x+33,it.y+25,8,8,palette.yellow); }
+      if(it.name==="ТОСТ"){ px(it.x+22,it.y+15,28,30,"#bb7434"); px(it.x+28,it.y+21,16,18,"#f0bd71"); }
+      if(it.name==="КОФЕ") drawCoffee(it.x+36,it.y+29,1.6);
+      if(it.name==="IQOS") drawIQOS(it.x+36,it.y+30,1.5);
+      text(it.name,it.x+36,it.y+43,11,palette.black,"center");
+    }
+    breakfast.fx.forEach(f=>text(f.txt,f.x,f.y,16,palette.green,"center"));
+  }
+
+  // Drive
+  let drive;
+  function initDrive(){
+    scene="drive";
+    drive={lane:1,x:180,y:535,speed:185,dist:0,coffee:0,miss:0,spawn:0,items:[],cars:[],shake:0};
+    hint("Шашечки на BMW X4: ◀ ▶ меняют ряд. Собирай кофе, не врезайся. Нужно 8 кофе или 1200 м.");
+    setButtons({left:true,right:true});
+  }
+  function updateDrive(dt){
+    if(buttons.left){ drive.lane = Math.max(0, drive.lane-1); buttons.left=false; }
+    if(buttons.right){ drive.lane = Math.min(2, drive.lane+1); buttons.right=false; }
+    const lanes=[100,180,260];
+    drive.x += (lanes[drive.lane]-drive.x)*dt*12;
+    drive.dist += drive.speed*dt;
+    drive.spawn -= dt;
+    if(drive.spawn<=0){
+      drive.spawn = rnd(.45,.85);
+      const lane=irnd(0,2);
+      if(Math.random()<.32) drive.items.push({x:lanes[lane],y:-20,w:24,h:24});
+      else drive.cars.push({x:lanes[lane],y:-60,w:36,h:64,c:["#ff5c7a","#66e7ff","#ffd35a"][irnd(0,2)]});
+    }
+    [...drive.items,...drive.cars].forEach(o=>o.y += (drive.speed+60)*dt);
+    drive.items = drive.items.filter(o=>o.y<H+50);
+    drive.cars = drive.cars.filter(o=>o.y<H+80);
+    const carBox={x:drive.x-16,y:drive.y-28,w:32,h:56};
+    for(const c of drive.items){
+      if(!c.dead && hit(carBox,{x:c.x-12,y:c.y-12,w:24,h:24})){
+        c.dead=true; drive.coffee++; save.coffee++; toast("Кофе +1");
+      }
+    }
+    drive.items=drive.items.filter(o=>!o.dead);
+    for(const c of drive.cars){
+      if(!c.dead && hit(carBox,{x:c.x-18,y:c.y-32,w:36,h:64})){
+        c.dead=true; drive.miss++; drive.shake=.25; toast("Бампер жалко!");
+      }
+    }
+    drive.shake=Math.max(0,drive.shake-dt);
+    if(drive.coffee>=8 || drive.dist>=1200) startStory(2);
+    if(drive.miss>=4) { toast("Катя всё равно доехала"); startStory(2); }
+  }
+  function drawRoad(offset=0){
+    px(0,0,W,H,"#102030");
+    px(55,0,250,H,palette.road);
+    for(let x of [138,222]){
+      for(let y=-80+(offset%80); y<H; y+=80) px(x,y,5,42,"#f2f2a2");
+    }
+    px(50,0,5,H,"#6f7580"); px(305,0,5,H,"#6f7580");
+  }
+  function drawDrive(){
+    ctx.save();
+    if(drive.shake>0) ctx.translate(rnd(-5,5),rnd(-5,5));
+    drawRoad(drive.dist*.7);
+    drive.items.forEach(o=>drawCoffee(o.x,o.y,1.5));
+    drive.cars.forEach(c=>{ px(c.x-18,c.y-32,36,64,c.c); px(c.x-13,c.y-22,26,14,"#111"); px(c.x-13,c.y+8,26,14,"#111"); });
+    drawBMW(drive.x,drive.y,0,1);
+    ctx.restore();
+    text("КОФЕ "+drive.coffee+"/8",20,55,15,palette.cream);
+    text(Math.floor(drive.dist)+" м",258,55,15,palette.cyan);
+    text("УДАРЫ "+drive.miss+"/4",20,78,13,drive.miss>2?palette.red:palette.white);
+  }
+
+  // Tennis
+  let tennis;
+  function initTennis(){
+    scene="tennis";
+    tennis={px:180, ox:180, ball:{x:180,y:350,vx:90,vy:165,r:7}, score:0, enemy:0, timer:60, serve:1};
+    hint("Большой теннис: двигай Катю ◀ ▶, A — сильный удар. Набери 5 очков.");
+    setButtons({left:true,right:true,a:true,aText:"УДАР"});
+  }
+  function updateTennis(dt){
+    tennis.timer-=dt;
+    if(buttons.left) tennis.px-=210*dt;
+    if(buttons.right) tennis.px+=210*dt;
+    tennis.px=clamp(tennis.px,55,305);
+    tennis.ox += (tennis.ball.x - tennis.ox)*dt*(tennis.score<3?2.4:3.2);
+    tennis.ox=clamp(tennis.ox,65,295);
+    const b=tennis.ball;
+    b.x+=b.vx*dt; b.y+=b.vy*dt;
+    if(b.x<34||b.x>326) b.vx*=-1;
+    if(b.y>503 && b.y<530 && Math.abs(b.x-tennis.px)<50 && b.vy>0){
+      b.vy = buttons.a ? -230 : -175;
+      b.vx += (b.x-tennis.px)*3.1;
+      buttons.a=false; toast("Удар!");
+    }
+    if(b.y<142 && b.y>115 && Math.abs(b.x-tennis.ox)<44 && b.vy<0){
+      b.vy = 170 + tennis.score*8;
+      b.vx += (b.x-tennis.ox)*2.4;
+    }
+    if(b.y<70){ tennis.score++; resetTennisBall(1); toast("Очко Кати!"); }
+    if(b.y>610){ tennis.enemy++; resetTennisBall(-1); toast("Мимо!"); }
+    if(tennis.score>=5 || tennis.timer<=0) startStory(3);
+  }
+  function resetTennisBall(dir){
+    tennis.ball={x:180,y:350,vx:rnd(-80,80),vy:dir>0?165:-165,r:7};
+  }
+  function drawTennis(){
+    px(0,0,W,H,"#17432c");
+    px(24,105,312,450,"#3f965f");
+    px(34,115,292,430,"#fff");
+    px(40,121,280,418,"#3f965f");
+    px(40,328,280,5,"#fff");
+    px(83,121,4,418,"#fff"); px(273,121,4,418,"#fff");
+    px(40,225,280,4,"#fff"); px(40,435,280,4,"#fff");
+    px(tennis.ox-42,116,84,10,palette.red);
+    drawPixelKatya(tennis.px-22,500,2.4,buttons.a?2:0);
+    px(tennis.ball.x-7,tennis.ball.y-7,14,14,palette.yellow);
+    text("КАТЯ "+tennis.score,22,55,15,palette.green);
+    text("СОПЕРНИК "+tennis.enemy,220,55,15,palette.red);
+    text("Время "+Math.ceil(tennis.timer),134,78,13,palette.cream);
+  }
+
+  // Drift
+  let drift;
+  function initDrift(){
+    scene="drift";
+    drift={x:180,y:470,ang:-Math.PI/2,vel:0,score:0,combo:0,timer:45,marks:[],cones:[],spawn:0};
+    for(let i=0;i<16;i++) drift.cones.push({x:irnd(40,320),y:irnd(115,500),w:18,h:18});
+    hint("Дрифт: ◀ ▶ руление, A газ, B ручник. Держи занос рядом с конусами и набери стиль.");
+    setButtons({left:true,right:true,a:true,b:true,aText:"ГАЗ",bText:"ДРИФТ"});
+  }
+  function updateDrift(dt){
+    drift.timer-=dt;
+    const steer=(buttons.left?-1:0)+(buttons.right?1:0);
+    if(buttons.a) drift.vel += 180*dt; else drift.vel -= 90*dt;
+    drift.vel=clamp(drift.vel,20,220);
+    const drifting=buttons.b && drift.vel>80;
+    drift.ang += steer*dt*(drifting?3.2:1.8);
+    drift.x += Math.cos(drift.ang)*drift.vel*dt;
+    drift.y += Math.sin(drift.ang)*drift.vel*dt;
+    if(drift.x<24||drift.x>336){ drift.ang=Math.PI-drift.ang; drift.x=clamp(drift.x,24,336); drift.combo=0; }
+    if(drift.y<105||drift.y>570){ drift.ang=-drift.ang; drift.y=clamp(drift.y,105,570); drift.combo=0; }
+    if(drifting){
+      drift.marks.push({x:drift.x,y:drift.y,life:2});
+      let near=false;
+      for(const c of drift.cones){
+        const d=Math.hypot(c.x-drift.x,c.y-drift.y);
+        if(d<45) near=true;
+      }
+      if(near){ drift.combo += dt*10; drift.score += dt*(20+drift.combo); }
+      else drift.score += dt*5;
+    } else drift.combo=Math.max(0,drift.combo-dt*6);
+    drift.marks.forEach(m=>m.life-=dt);
+    drift.marks=drift.marks.filter(m=>m.life>0);
+    if(drift.timer<=0 || drift.score>=650){ save.style += Math.floor(drift.score); startStory(4); }
+  }
+  function drawDrift(){
+    px(0,0,W,H,"#0d1020");
+    px(25,100,310,480,"#242633");
+    for(let y=120;y<570;y+=45) for(let x=45;x<320;x+=45) px(x,y,2,2,"rgba(255,255,255,.12)");
+    drift.marks.forEach(m=>px(m.x-5,m.y-5,10,10,`rgba(0,0,0,${m.life/2*.45})`));
+    drift.cones.forEach(c=>{ px(c.x-8,c.y-8,16,16,palette.yellow); px(c.x-4,c.y-4,8,8,palette.red); });
+    drawBMW(drift.x,drift.y,drift.ang+Math.PI/2,0.88);
+    text("СТИЛЬ "+Math.floor(drift.score),18,55,15,palette.pink);
+    text("КОМБО x"+Math.floor(drift.combo),230,55,15,palette.cyan);
+    text("Время "+Math.ceil(drift.timer),136,78,13,palette.cream);
+  }
+
+  // Poledance rhythm
+  let pole;
+  function initPole(){
+    scene="poledance";
+    pole={timer:45,score:0,combo:0,notes:[],spawn:.4,miss:0,flash:0};
+    hint("Пулдэнс-ритм: жми ◀ ▶ A B по нижней дорожке. Теперь кнопки на экране совпадают с порядком дорожек.");
+    setButtons({left:true,right:true,a:true,b:true,aText:"A",bText:"B"});
+  }
+  const cols=[
+    {key:"left",x:63,label:"◀"},
+    {key:"right",x:136,label:"▶"},
+    {key:"a",x:223,label:"A"},
+    {key:"b",x:296,label:"B"}
+  ];
+  function updatePole(dt){
+    pole.timer-=dt; pole.spawn-=dt; pole.flash=Math.max(0,pole.flash-dt);
+    if(pole.spawn<=0){
+      pole.spawn = rnd(.38,.7);
+      const col=irnd(0,3);
+      pole.notes.push({col,y:-20,hit:false});
+    }
+    pole.notes.forEach(n=>n.y += 190*dt);
+    for(let i=0;i<cols.length;i++){
+      const c=cols[i];
+      if(buttons[c.key]){
+        buttons[c.key]=false;
+        let best=null, bestD=999;
+        for(const n of pole.notes){
+          if(n.col===i && !n.hit){
+            const d=Math.abs(n.y-505);
+            if(d<bestD){bestD=d; best=n;}
+          }
+        }
+        if(best && bestD<42){
+          best.hit=true; pole.combo++; pole.score += 30 + pole.combo*4; pole.flash=.12; toast("Комбо "+pole.combo);
+        } else { pole.combo=0; pole.miss++; }
+      }
+    }
+    pole.notes = pole.notes.filter(n=>{
+      if(n.hit) return false;
+      if(n.y>560){ pole.combo=0; pole.miss++; return false; }
+      return true;
+    });
+    if(pole.timer<=0 || pole.score>=900) startStory(5);
+  }
+  function drawPole(){
+    px(0,0,W,H,pole.flash>0?"#32144d":"#160a22");
+    px(0,478,W,162,"#281033");
+    px(175,95,10,405,"#d9d9ee");
+    for(let i=0;i<5;i++) px(i*85,0,35,H,i%2?"rgba(102,231,255,.08)":"rgba(255,108,199,.08)");
+    drawPixelKatya(143+Math.sin(t*.006)*18,365,3,Math.floor(t/180)%3);
+    px(30,487,300,42,"rgba(255,255,255,.1)");
+    px(30,502,300,6,palette.yellow);
+    cols.forEach((c,i)=>{ text(c.label,c.x,545,22,palette.cream,"center"); px(c.x-26,95,52,430,"rgba(255,255,255,.035)"); });
+    pole.notes.forEach(n=>{
+      const c=cols[n.col];
+      px(c.x-20,n.y-20,40,40,n.col<2?palette.cyan:palette.pink);
+      text(c.label,c.x,n.y-11,18,palette.black,"center");
+    });
+    text("ОЧКИ "+Math.floor(pole.score),18,55,15,palette.green);
+    text("КОМБО "+pole.combo,235,55,15,palette.pink);
+    text("Время "+Math.ceil(pole.timer),136,78,13,palette.cream);
+  }
+
+  // Message
+  let msg;
+  function initMessage(){
+    scene="message";
+    msg={
+      step:0, done:false, pulse:0,
+      words:["Илья,","я","доехала,","победила","день","и","скучаю."],
+      chosen:[],
+      target:["Илья,","я","доехала,","победила","день","и","скучаю."]
+    };
+    hint("Финал: собери сообщение Илье в правильном порядке. Тапай слова.");
+    setButtons({wide:false});
+  }
+  function clickMessage(x,y){
+    msg.words.forEach((w,i)=>{
+      const bx=28+(i%2)*155, by=330+Math.floor(i/2)*58;
+      if(x>=bx&&x<=bx+145&&y>=by&&y<=by+42 && !msg.chosen.includes(i)){
+        const need = msg.target[msg.step];
+        if(w===need){
+          msg.chosen.push(i); msg.step++; toast("Верно");
+          if(msg.step>=msg.target.length){
+            msg.done=true; save.hearts+=3;
+            setButtons({wide:true,wideText:"ФИНАЛ"});
+          }
+        } else {
+          toast("Катя передумала формулировку");
+        }
+      }
+    });
+  }
+  function drawMessage(){
+    px(0,0,W,H,"#151020");
+    px(54,52,252,536,"#07070c"); px(66,80,228,472,"#e7efff");
+    px(80,102,130,34,"#c7d8ff"); text("Катя",94,111,15,"#1d2540");
+    px(84,166,190,112,"#fff"); px(94,177,170,92,"#222");
+    wrapText(msg.target.slice(0,msg.step).join(" "),102,188,150,18,14,"#fff");
+    if(msg.done){
+      px(92,285,176,38,palette.green);
+      text("ОТПРАВЛЕНО ❤️",180,296,16,palette.black,"center");
+    } else {
+      text("Собери сообщение:",180,292,14,"#1d2540","center");
+    }
+    msg.words.forEach((w,i)=>{
+      const bx=28+(i%2)*155, by=330+Math.floor(i/2)*58;
+      px(bx,by,145,42,msg.chosen.includes(i)?"#4b526a":palette.pink);
+      text(w,bx+72,by+12,12,msg.chosen.includes(i)?"#aeb5c9":"#fff","center");
+    });
+    drawPixelKatya(146,570,2.1,2);
+  }
+
+  function drawEnding(){
+    px(0,0,W,H,"#120b18");
+    for(let i=0;i<90;i++) px((i*31+Math.sin(t*.002+i)*40)%W,(i*57+t*.04)%H,3,3,i%3?palette.pink:palette.cyan);
+    text("ДЕНЬ ПРОЙДЕН!",180,90,28,palette.yellow,"center");
+    drawPixelKatya(126,188,5,Math.floor(t/200)%3);
+    px(34,405,292,126,"rgba(0,0,0,.55)");
+    text("Итоги",180,424,20,palette.cream,"center");
+    text("Кофе собрано: "+save.coffee,70,462,15,palette.cyan);
+    text("Стиль дрифта: "+save.style,70,488,15,palette.pink);
+    text("Катя написала Илье ❤️",70,514,15,palette.green);
+    text("Нажми, чтобы начать заново",180,574,13,palette.cream,"center");
+  }
+
+  function goNext(){
+    if(scene==="title") startStory(0);
+    else if(scene==="story"){
+      const next=story[storyIndex].next;
+      if(next==="breakfast") initBreakfast();
+      if(next==="drive") initDrive();
+      if(next==="tennis") initTennis();
+      if(next==="drift") initDrift();
+      if(next==="poledance") initPole();
+      if(next==="message") initMessage();
+    }
+    else if(scene==="message" && msg.done){ scene="ending"; setButtons({wide:true,wideText:"ЗАНОВО"}); hint("Финал пройден. Можно перезапустить игру."); }
+    else if(scene==="ending"){ save={hearts:0,coffee:0,style:0}; scene="title"; setButtons({wide:true,wideText:"НАЧАТЬ"}); hint("Нажми «Начать» — и день Кати начнётся."); }
+  }
+
+  function update(dt){
+    t += dt*1000;
+    if(scene==="breakfast") updateBreakfast(dt);
+    if(scene==="drive") updateDrive(dt);
+    if(scene==="tennis") updateTennis(dt);
+    if(scene==="drift") updateDrift(dt);
+    if(scene==="poledance") updatePole(dt);
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    if(scene==="title") drawTitle();
+    if(scene==="story") drawStory();
+    if(scene==="breakfast") drawBreakfast();
+    if(scene==="drive") drawDrive();
+    if(scene==="tennis") drawTennis();
+    if(scene==="drift") drawDrift();
+    if(scene==="poledance") drawPole();
+    if(scene==="message") drawMessage();
+    if(scene==="ending") drawEnding();
+  }
+  function loop(now){
+    const dt=Math.min(.033,(now-last)/1000); last=now;
+    update(dt); draw();
+    requestAnimationFrame(loop);
+  }
+
+  function bindHold(btn,key){
+    const on=ev=>{ev.preventDefault(); buttons[key]=true;};
+    const off=ev=>{ev.preventDefault(); buttons[key]=false;};
+    btn.addEventListener("pointerdown",on);
+    btn.addEventListener("pointerup",off);
+    btn.addEventListener("pointercancel",off);
+    btn.addEventListener("pointerleave",off);
+  }
+  bindHold(ui.left,"left");
+  bindHold(ui.right,"right");
+  bindHold(ui.a,"a");
+  bindHold(ui.b,"b");
+  ui.wide.addEventListener("click",goNext);
+
+  function toCanvas(ev){
+    const rect=canvas.getBoundingClientRect();
+    const p = ev.touches ? ev.touches[0] : ev;
+    return {x:(p.clientX-rect.left)*W/rect.width, y:(p.clientY-rect.top)*H/rect.height};
+  }
+  canvas.addEventListener("pointerdown",ev=>{
+    const p=toCanvas(ev); pointer={down:true,x:p.x,y:p.y,startX:p.x,startY:p.y};
+    if(scene==="breakfast") clickBreakfast(p.x,p.y);
+    if(scene==="message") clickMessage(p.x,p.y);
+    if(scene==="ending") goNext();
+  });
+  canvas.addEventListener("pointermove",ev=>{
+    if(!pointer.down) return;
+    const p=toCanvas(ev); pointer.x=p.x; pointer.y=p.y;
+    if(scene==="tennis") tennis.px = clamp(p.x,55,305);
+  });
+  canvas.addEventListener("pointerup",ev=>{
+    const dx=pointer.x-pointer.startX, dy=pointer.y-pointer.startY;
+    if(scene==="drive" && Math.abs(dx)>35 && Math.abs(dx)>Math.abs(dy)){
+      if(dx<0) buttons.left=true; else buttons.right=true;
+    }
+    pointer.down=false;
+  });
+
+  document.addEventListener("keydown",e=>{
+    if(e.key==="ArrowLeft") buttons.left=true;
+    if(e.key==="ArrowRight") buttons.right=true;
+    if(e.key===" " || e.key==="Enter") buttons.a=true;
+    if(e.key==="Shift") buttons.b=true;
+  });
+  document.addEventListener("keyup",e=>{
+    if(e.key==="ArrowLeft") buttons.left=false;
+    if(e.key==="ArrowRight") buttons.right=false;
+    if(e.key===" " || e.key==="Enter") buttons.a=false;
+    if(e.key==="Shift") buttons.b=false;
+  });
+
+  hint("");
+  setButtons({wide:true, wideText:"НАЧАТЬ"});
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
