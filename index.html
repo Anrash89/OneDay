@@ -384,6 +384,29 @@
     px(x-2*s,y-15*s,4*s,3*s,palette.cyan);
     px(x-1*s,y+9*s,2*s,5*s,"#aaa");
   }
+  function drawSphynxCat(x,y,s=1,awake=false){
+    // curled hairless cat, gray-beige like the real kitty
+    px(x-16*s,y-8*s,30*s,18*s,"#b9aaa4");
+    px(x-13*s,y-11*s,24*s,16*s,"#c9bab4");
+    px(x-7*s,y-13*s,15*s,13*s,"#b8a9a4");
+    px(x-12*s,y-18*s,7*s,12*s,"#8f7774");
+    px(x+3*s,y-18*s,7*s,12*s,"#8f7774");
+    px(x-4*s,y-9*s,2*s,2*s,awake ? "#4ac7ff" : "#6f5f5a");
+    px(x+3*s,y-9*s,2*s,2*s,awake ? "#4ac7ff" : "#6f5f5a");
+    px(x-2*s,y-5*s,4*s,1*s,"#6f5f5a");
+    px(x-12*s,y-4*s,18*s,1*s,"#8f817c");
+    px(x-10*s,y+0*s,16*s,1*s,"#8f817c");
+    px(x+9*s,y+1*s,8*s,3*s,"#a69590");
+  }
+  function drawCatFoodBowl(x,y,s=1,filled=true){
+    px(x-14*s,y-4*s,28*s,8*s,"#72dcff");
+    px(x-10*s,y-7*s,20*s,5*s,"#aeeeff");
+    if(filled){
+      px(x-8*s,y-9*s,4*s,3*s,"#8b4b24");
+      px(x-2*s,y-10*s,4*s,3*s,"#8b4b24");
+      px(x+4*s,y-9*s,4*s,3*s,"#8b4b24");
+    }
+  }
   function drawRoom(){
     px(0,0,W,H,"#ffeef8");
     for(let i=0;i<9;i++) px(i*44,0,2,H,"rgba(255,255,255,.05)");
@@ -494,15 +517,16 @@
     breakfast = {
       step:0, score:0, timer:45, panHeat:0, smoke:0,
       items:[
-        {name:"ЯЙЦО", x:42,y:470,w:72,h:58, ok:0, c:"#fff"},
-        {name:"ТОСТ", x:144,y:470,w:72,h:58, ok:1, c:"#d89b4b"},
-        {name:"КОФЕ", x:246,y:470,w:72,h:58, ok:2, c:"#7a4328"},
-        {name:"IQOS", x:144,y:545,w:72,h:58, ok:3, c:"#e9e9f6"}
+        {name:"КИСА", x:42,y:462,w:72,h:58, ok:0, c:"#c7b4aa"},
+        {name:"ЯЙЦО", x:144,y:462,w:72,h:58, ok:1, c:"#fff"},
+        {name:"ТОСТ", x:246,y:462,w:72,h:58, ok:2, c:"#d89b4b"},
+        {name:"КОФЕ", x:90,y:535,w:72,h:58, ok:3, c:"#7a4328"},
+        {name:"IQOS", x:198,y:535,w:72,h:58, ok:4, c:"#e9e9f6"}
       ],
-      order:["ЯЙЦО","ТОСТ","КОФЕ","IQOS"],
+      order:["КИСА","ЯЙЦО","ТОСТ","КОФЕ","IQOS"],
       fx:[]
     };
-    hint("Мини-игра: готовим завтрак. Нажимай продукты в правильном порядке: яйцо → тост → кофе → IQOS-пауза.");
+    hint("Мини-игра: утро Кати. Первым делом накорми КИСУ, потом завтрак: яйцо → тост → кофе → IQOS-пауза.");
     setButtons({wide:false});
   }
   function clickBreakfast(x,y){
@@ -511,8 +535,8 @@
         if(it.ok===breakfast.step){
           breakfast.step++; breakfast.score += 25;
           breakfast.fx.push({x:it.x+36,y:it.y,txt:"+25",life:1});
-          toast(it.name==="IQOS" ? "Короткая пауза и дальше в бой" : "Отлично!");
-          if(breakfast.step>=4){
+          toast(it.name==="КИСА" ? "Киса накормлена!" : (it.name==="IQOS" ? "Короткая пауза и дальше в бой" : "Отлично!"));
+          if(breakfast.step>=5){
             save.hearts += 1;
             setTimeout(()=>startStory(1), 650);
           }
@@ -540,17 +564,24 @@
     px(157,260,58,42,"#f4f4ff"); px(171,273,30,15,"#fff1c7");
     drawCoffee(257,280,2);
     drawPixelKatya(142,150,3,Math.floor(t/250)%2);
-    if(breakfast.step>=3){
+
+    // Kisa waits for breakfast first
+    drawSphynxCat(75,385,2, breakfast.step>0);
+    drawCatFoodBowl(123,394,1.4, breakfast.step>0);
+    text(breakfast.step>0 ? "Киса сыта" : "Киса ждёт",75,415,11,breakfast.step>0?palette.green:palette.yellow,"center");
+
+    if(breakfast.step>=4){
       drawIQOS(118,184,2);
       for(let i=0;i<4;i++) px(118+i*8, 150 - ((breakfast.smoke*20+i*13)%40), 3,3, "rgba(210,240,255,.7)");
     }
     px(20,406,320,48,"rgba(0,0,0,.45)");
-    text("Порядок: "+breakfast.order.map((o,i)=> i<breakfast.step ? "✓" : o).join(" → "),180,420,12,"#fff","center");
+    text("Порядок: "+breakfast.order.map((o,i)=> i<breakfast.step ? "✓" : o).join(" → "),180,420,10,"#fff","center");
     text("Время: "+Math.ceil(breakfast.timer),24,38,14,palette.cream);
     text("Очки: "+breakfast.score,260,38,14,palette.green);
     for(const it of breakfast.items){
       px(it.x,it.y,it.w,it.h,"rgba(0,0,0,.35)");
       px(it.x+4,it.y+4,it.w-8,it.h-8,it.c);
+      if(it.name==="КИСА"){ drawSphynxCat(it.x+36,it.y+28,1.15,true); drawCatFoodBowl(it.x+36,it.y+46,.85,true); }
       if(it.name==="ЯЙЦО"){ px(it.x+24,it.y+20,24,18,"#fff"); px(it.x+33,it.y+25,8,8,palette.yellow); }
       if(it.name==="ТОСТ"){ px(it.x+22,it.y+15,28,30,"#bb7434"); px(it.x+28,it.y+21,16,18,"#f0bd71"); }
       if(it.name==="КОФЕ") drawCoffee(it.x+36,it.y+29,1.6);
