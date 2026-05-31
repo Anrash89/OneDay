@@ -25,21 +25,26 @@
       touch-action:none;
     }
     #wrap {
-      width:100vw; height:100vh;
-      display:flex; align-items:center; justify-content:center;
-      padding:10px;
+      width:100vw;
+      height:100dvh;
+      min-height:100svh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:0;
+      overflow:hidden;
+      background:#120b18;
     }
     #gameShell {
       position:relative;
-      width:min(100vw, 430px);
-      height:min(100vh, 820px);
+      width:min(100vw, calc(100dvh * 9 / 16), 430px);
+      height:min(100dvh, calc(100vw * 16 / 9), 820px);
       aspect-ratio:9/16;
-      max-height:100vh;
-      border:4px solid #3f2754;
-      border-radius:22px;
+      border:3px solid #3f2754;
+      border-radius:16px;
       overflow:hidden;
       background:#111;
-      box-shadow:0 20px 70px rgba(0,0,0,.45), inset 0 0 0 3px rgba(255,255,255,.08);
+      box-shadow:0 12px 40px rgba(0,0,0,.42), inset 0 0 0 2px rgba(255,255,255,.08);
     }
     canvas {
       display:block;
@@ -75,27 +80,36 @@
     .btn:active { transform:translateY(5px); box-shadow:0 3px 0 rgba(0,0,0,.35); }
     .hidden { display:none !important; }
     #leftBtn,#rightBtn,#aBtn,#bBtn {
-      bottom:22px; width:76px; height:64px;
+      bottom:calc(12px + env(safe-area-inset-bottom));
+      width:64px;
+      height:52px;
+      font-size:14px;
+      border-radius:15px;
     }
-    #leftBtn { left:18px; }
-    #rightBtn { left:105px; }
-    #aBtn { right:105px; background:rgba(255,108,199,.78); }
-    #bBtn { right:18px; background:rgba(102,231,255,.55); }
+    #leftBtn { left:12px; }
+    #rightBtn { left:84px; }
+    #aBtn { right:84px; background:rgba(255,108,199,.80); }
+    #bBtn { right:12px; background:rgba(102,231,255,.58); }
     #wideBtn {
-      left:64px; right:64px; bottom:18px; height:54px;
-      background:linear-gradient(135deg, rgba(255,108,199,.88), rgba(102,231,255,.70));
+      left:92px;
+      right:92px;
+      bottom:calc(8px + env(safe-area-inset-bottom));
+      height:42px;
+      font-size:14px;
+      border-radius:14px;
+      background:linear-gradient(135deg, rgba(255,108,199,.92), rgba(102,231,255,.78));
     }
     #topHint {
       position:absolute;
-      top:10px; left:10px; right:10px;
-      padding:10px 12px;
-      border-radius:14px;
+      top:8px; left:8px; right:8px;
+      padding:8px 10px;
+      border-radius:12px;
       background:rgba(14,8,20,.58);
       border:2px solid rgba(255,255,255,.12);
       color:#fff3d8;
       font-weight:800;
-      font-size:14px;
-      line-height:1.25;
+      font-size:12px;
+      line-height:1.22;
       pointer-events:none;
       text-shadow:0 2px 0 #000;
     }
@@ -116,10 +130,25 @@
     }
     #toast.show { opacity:1; transform:translateY(0); }
     @media (max-height:680px) {
-      #gameShell { border-radius:14px; }
-      #leftBtn,#rightBtn,#aBtn,#bBtn { bottom:12px; height:56px; width:68px; font-size:14px; }
-      #rightBtn { left:92px; }
-      #aBtn { right:92px; }
+      #gameShell { border-radius:12px; border-width:2px; }
+      #leftBtn,#rightBtn,#aBtn,#bBtn {
+        bottom:calc(8px + env(safe-area-inset-bottom));
+        height:46px;
+        width:58px;
+        font-size:13px;
+      }
+      #leftBtn { left:8px; }
+      #rightBtn { left:72px; }
+      #aBtn { right:72px; }
+      #bBtn { right:8px; }
+      #wideBtn {
+        left:102px;
+        right:102px;
+        bottom:calc(6px + env(safe-area-inset-bottom));
+        height:36px;
+        font-size:12px;
+      }
+      #topHint { font-size:11px; padding:7px 8px; }
     }
   </style>
 </head>
@@ -478,7 +507,7 @@
   function startStory(i){
     scene="story"; storyIndex=i;
     hint("");
-    setButtons({wide:true, wideText:"ДАЛЬШЕ"});
+    setButtons({wide:true, wideText:"ДАЛЕЕ"});
   }
   function drawStory(){
     const img = comicImages[storyIndex];
@@ -486,19 +515,22 @@
     // Show the generated comic page full-screen between mini-games.
     // The canvas is 9:16 and the comics are also vertical, so this fills the phone nicely.
     if(img && img.complete && img.naturalWidth){
-      const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+      // Fit the whole comic inside the phone screen without cropping.
+      // This is important on mobile browsers where the visible viewport is shorter.
+      const scale = Math.min((W - 10) / img.naturalWidth, (H - 10) / img.naturalHeight);
       const dw = img.naturalWidth * scale;
       const dh = img.naturalHeight * scale;
       const dx = (W - dw) / 2;
       const dy = (H - dh) / 2;
+
+      px(0,0,W,H,"#1b1026");
+      px(7,7,W-14,H-14,"#2a1836");
+
       ctx.drawImage(img, dx, dy, dw, dh);
 
-      // subtle bottom fade so the "ДАЛЬШЕ" button remains readable
-      const g = ctx.createLinearGradient(0, H-150, 0, H);
-      g.addColorStop(0, "rgba(0,0,0,0)");
-      g.addColorStop(1, "rgba(0,0,0,.45)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, H-150, W, 150);
+      ctx.strokeStyle = "rgba(255,255,255,.20)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(dx-2, dy-2, dw+4, dh+4);
     } else {
       const s=story[storyIndex];
       drawComicBg(s.bg);
